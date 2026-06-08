@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategy Board — AI-совет директоров для вашего проекта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;700;900&family=JetBrains+Mono:wght@300;400;500&family=Onest:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ─────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --black:#060608;
+  --ink:#0d0d10;
+  --panel:#111116;
+  --panel2:#16161c;
+  --border:#1e1e28;
+  --border2:#2a2a38;
+  --gold:#d4a843;
+  --gold2:#f0c060;
+  --green:#22c984;
+  --red:#e85454;
+  --blue:#4a8fff;
+  --muted:#4a4a60;
+  --dim:#2e2e40;
+  --text:#e8e8f0;
+  --text2:#8888a8;
+  --text3:#4a4a65;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Onest',sans-serif;
+  --display:'Unbounded',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--black);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+
+/* ── SCAN-LINE OVERLAY ─────────────────────────────── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,transparent 2px,
+    rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px
+  );
+  pointer-events:none;z-index:9999;
+}
+
+/* ── GRID TEXTURE ──────────────────────────────────── */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:48px 48px;
+  opacity:.35;
+  pointer-events:none;z-index:0;
+}
+
+/* ── NAV ───────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;
+  background:rgba(6,6,8,0.92);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{
+  font-family:var(--display);
+  font-size:13px;font-weight:700;
+  letter-spacing:.05em;
+  color:var(--text);
+  display:flex;align-items:center;gap:10px;
+}
+.nav-logo-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  animation:blink 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{
+  font-size:13px;color:var(--text2);
+  text-decoration:none;letter-spacing:.02em;
+  transition:color .15s;
+}
+.nav-links a:hover{color:var(--text)}
+.nav-right{display:flex;gap:10px;align-items:center}
+.btn-ghost{
+  padding:7px 18px;
+  font-size:13px;font-family:var(--sans);
+  background:transparent;
+  border:1px solid var(--border2);
+  border-radius:4px;color:var(--text2);
+  cursor:pointer;transition:all .15s;
+}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-cta{
+  padding:7px 20px;
+  font-size:13px;font-family:var(--display);font-weight:700;
+  background:var(--gold);
+  border:none;border-radius:4px;
+  color:var(--black);
+  cursor:pointer;transition:all .15s;
+  letter-spacing:.03em;
+}
+.btn-cta:hover{background:var(--gold2);transform:translateY(-1px)}
+
+/* ── HERO ──────────────────────────────────────────── */
+.hero{
+  position:relative;z-index:1;
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  padding:120px 40px 80px;
+  max-width:1400px;margin:0 auto;
+}
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11px;
+  color:var(--green);letter-spacing:.12em;
+  text-transform:uppercase;
+  margin-bottom:32px;
+}
+.hero-tag::before{content:'> ';color:var(--muted)}
+.hero-h1{
+  font-family:var(--display);
+  font-size:clamp(36px,6vw,80px);
+  font-weight:900;
+  line-height:1.0;
+  letter-spacing:-.02em;
+  color:var(--text);
+  margin-bottom:12px;
+}
+.hero-h1 .accent{color:var(--gold)}
+.hero-h1 .dim{color:var(--text3)}
+.hero-sub{
+  font-size:clamp(15px,2vw,20px);
+  color:var(--text2);
+  max-width:600px;
+  line-height:1.6;
+  margin-bottom:48px;
+}
+.hero-sub strong{color:var(--text);font-weight:500}
+
+/* ── IDEA INPUT BOX ────────────────────────────────── */
+.idea-box{
+  background:var(--panel);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  overflow:hidden;
+  max-width:780px;
+  margin-bottom:48px;
+  transition:border-color .2s;
+}
+.idea-box:focus-within{border-color:var(--gold)}
+.idea-box-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 18px;
+  border-bottom:1px solid var(--border);
+  background:var(--panel2);
+}
+.idea-box-header span{
+  font-family:var(--mono);font-size:11px;
+  color:var(--text3);letter-spacing:.08em;
+}
+.idea-box-header .dot{
+  width:6px;height:6px;border-radius:50%;
+}
+textarea.idea-input{
+  width:100%;
+  background:transparent;
+  border:none;outline:none;
+  padding:20px 18px;
+  font-family:var(--sans);font-size:15px;
+  color:var(--text);
+  resize:none;
+  min-height:100px;
+  line-height:1.6;
+}
+textarea.idea-input::placeholder{color:var(--muted)}
+.idea-box-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 18px;
+  border-top:1px solid var(--border);
+}
+.idea-hint{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.btn-analyze{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 24px;
+  font-family:var(--display);font-size:13px;font-weight:700;
+  background:var(--gold);border:none;border-radius:4px;
+  color:var(--black);cursor:pointer;
+  transition:all .15s;letter-spacing:.03em;
+}
+.btn-analyze:hover{background:var(--gold2);transform:translateY(-1px)}
+.btn-analyze svg{transition:transform .2s}
+.btn-analyze:hover svg{transform:translateX(3px)}
+
+/* ── STATS ROW ─────────────────────────────────────── */
+.stats-row{
+  display:flex;gap:40px;flex-wrap:wrap;
+  border-top:1px solid var(--border);
+  padding-top:32px;
+}
+.stat-item{}
+.stat-num{
+  font-family:var(--display);font-size:28px;font-weight:900;
+  color:var(--gold);letter-spacing:-.02em;
+  line-height:1;margin-bottom:4px;
+}
+.stat-label{font-size:12px;color:var(--text3);letter-spacing:.04em}
+
+/* ── SECTION BASE ──────────────────────────────────── */
+section{
+  position:relative;z-index:1;
+  max-width:1400px;margin:0 auto;
+  padding:80px 40px;
+}
+.section-tag{
+  font-family:var(--mono);font-size:11px;
+  color:var(--gold);letter-spacing:.12em;
+  text-transform:uppercase;
+  display:block;margin-bottom:16px;
+}
+.section-tag::before{content:'// '}
+.section-h2{
+  font-family:var(--display);
+  font-size:clamp(24px,3.5vw,44px);
+  font-weight:900;
+  letter-spacing:-.02em;
+  color:var(--text);
+  line-height:1.1;
+  margin-bottom:12px;
+}
+.section-h2 em{font-style:normal;color:var(--gold)}
+.section-lead{
+  font-size:16px;color:var(--text2);
+  max-width:560px;line-height:1.7;
+  margin-bottom:56px;
+}
+
+/* ── FULL-WIDTH DIVIDER ─────────────────────────────── */
+.divider{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--border2),transparent);
+  position:relative;z-index:1;
+}
+
+/* ── HOW IT WORKS ──────────────────────────────────── */
+.steps-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;
+}
+.step{
+  background:var(--panel);
+  padding:36px 28px;
+  position:relative;
+  transition:background .2s;
+}
+.step:hover{background:var(--panel2)}
+.step-num{
+  font-family:var(--display);
+  font-size:56px;font-weight:900;
+  color:var(--dim);line-height:1;
+  position:absolute;top:20px;right:20px;
+  letter-spacing:-.04em;
+}
+.step-icon{
+  width:40px;height:40px;
+  background:var(--dim);
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;margin-bottom:20px;
+}
+.step-title{
+  font-family:var(--display);font-size:16px;font-weight:700;
+  color:var(--text);margin-bottom:10px;letter-spacing:-.01em;
+}
+.step-desc{font-size:14px;color:var(--text2);line-height:1.6}
+
+/* ── DEMO TERMINAL ─────────────────────────────────── */
+.terminal{
+  background:var(--panel);
+  border:1px solid var(--border2);
+  border-radius:8px;overflow:hidden;
+}
+.terminal-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 16px;
+  background:var(--panel2);
+  border-bottom:1px solid var(--border);
+}
+.t-dot{width:10px;height:10px;border-radius:50%}
+.terminal-title{
+  font-family:var(--mono);font-size:12px;
+  color:var(--text3);margin-left:8px;
+  flex:1;
+}
+.t-status{
+  font-family:var(--mono);font-size:11px;
+  color:var(--green);
+  display:flex;align-items:center;gap:6px;
+}
+.t-status::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 6px var(--green);
+  animation:blink 1.5s infinite;
+}
+.rounds-bar{
+  display:flex;gap:4px;align-items:center;
+  padding:12px 16px;
+  border-bottom:1px solid var(--border);
+  overflow-x:auto;
+}
+.round-chip{
+  flex-shrink:0;
+  font-family:var(--mono);font-size:10px;
+  padding:4px 10px;border-radius:100px;
+  border:1px solid var(--border2);
+  color:var(--text3);white-space:nowrap;
+  cursor:default;
+}
+.round-chip.done{
+  border-color:var(--green);color:var(--green);
+  background:rgba(34,201,132,.07);
+}
+.round-chip.active{
+  border-color:var(--gold);color:var(--gold);
+  background:rgba(212,168,67,.1);
+  animation:goldpulse 2s infinite;
+}
+@keyframes goldpulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(212,168,67,.3)}}
+.chat{
+  padding:16px;
+  display:block;
+}
+.msg{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+}
+@keyframes fadeup{from{opacity:0}to{opacity:1}}
+.msg-avatar{
+  width:32px;height:32px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  vertical-align:middle;
+  flex-shrink:0;
+  margin-right:8px;
+  margin-bottom:8px;
+}
+.msg-body{
+  background:#16161c;
+  border:1px solid #2a2a38;
+  border-radius:8px;
+  padding:14px 16px;
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin-top:0;
+}
+.msg-who{
+  font-family:var(--mono);font-size:11px;
+  margin-bottom:8px;font-weight:600;
+  display:block;
+}
+.msg-text{
+  font-size:14px;
+  color:#d0d0e8;
+  line-height:1.75;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  white-space:normal;
+  display:block;
+}
+.msg-text strong{color:#f0f0f8;font-weight:600;}
+.typing-dots{
+  display:inline-flex;gap:4px;align-items:center;
+  padding:3px 0;
+}
+.typing-dots span{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--muted);
+  animation:dots 1.2s infinite;
+}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dots{0%,60%,100%{opacity:.3;transform:scale(1)}30%{opacity:1;transform:scale(1.3)}}
+.chat-input-row{
+  padding:12px 16px;
+  border-top:1px solid var(--border);
+  display:flex;gap:10px;
+}
+.chat-field{
+  flex:1;
+  background:var(--panel2);
+  border:1px solid var(--border2);
+  border-radius:6px;
+  padding:10px 14px;
+  font-family:var(--sans);font-size:14px;
+  color:var(--text);outline:none;
+  transition:border-color .15s;
+}
+.chat-field::placeholder{color:var(--muted)}
+.chat-field:focus{border-color:var(--gold)}
+.btn-send{
+  padding:10px 20px;
+  font-family:var(--display);font-size:12px;font-weight:700;
+  background:var(--gold);border:none;border-radius:6px;
+  color:var(--black);cursor:pointer;white-space:nowrap;
+  transition:all .15s;letter-spacing:.03em;
+}
+.btn-send:hover{background:var(--gold2)}
+
+/* ── EXPERTS GRID ──────────────────────────────────── */
+.experts-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+.expert-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:24px 20px;
+  transition:all .2s;
+  position:relative;
+  overflow:hidden;
+  cursor:default;
+}
+.expert-card::before{
+  content:'';
+  position:absolute;bottom:0;left:0;right:0;
+  height:2px;
+  opacity:0;transition:opacity .2s;
+}
+.expert-card:hover{
+  background:var(--panel2);
+  border-color:var(--border2);
+  transform:translateY(-2px);
+}
+.expert-card:hover::before{opacity:1}
+.expert-avatar{
+  width:44px;height:44px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:13px;font-weight:700;
+  margin-bottom:16px;position:relative;
+}
+.expert-avatar::after{
+  content:'';position:absolute;inset:-2px;
+  border-radius:50%;border:1px solid currentColor;opacity:.25;
+}
+.expert-role{
+  font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:6px;
+}
+.expert-name{
+  font-family:var(--display);font-size:17px;font-weight:700;
+  color:var(--text);margin-bottom:10px;letter-spacing:-.01em;
+}
+.expert-desc{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.expert-tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{
+  font-family:var(--mono);font-size:10px;
+  padding:3px 8px;border-radius:100px;
+  border:1px solid var(--border2);color:var(--text3);
+}
+
+/* ── RESULTS ──────────────────────────────────────── */
+.results-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  margin-bottom:24px;
+}
+.result-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:20px 16px;text-align:center;
+  transition:all .2s;
+}
+.result-card:hover{border-color:var(--border2);background:var(--panel2)}
+.result-icon{font-size:24px;margin-bottom:10px}
+.result-title{
+  font-family:var(--display);font-size:13px;font-weight:700;
+  color:var(--text);margin-bottom:6px;letter-spacing:-.01em;
+}
+.result-desc{font-size:12px;color:var(--text3);line-height:1.5}
+
+/* ── VERDICT BOX ─────────────────────────────────── */
+.verdict-demo{
+  background:var(--panel);border:1px solid var(--border2);
+  border-radius:8px;overflow:hidden;margin-top:24px;
+}
+.verdict-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  background:var(--panel2);border-bottom:1px solid var(--border);
+}
+.verdict-label{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:.08em}
+.verdict-status{
+  font-family:var(--display);font-size:13px;font-weight:700;
+  letter-spacing:.05em;
+}
+.verdict-body{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:1px;background:var(--border);
+}
+.verdict-col{
+  background:var(--panel);
+  padding:20px 16px;
+}
+.verdict-col-label{
+  font-family:var(--mono);font-size:10px;
+  color:var(--text3);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:10px;
+}
+.verdict-val{
+  font-family:var(--display);font-size:28px;font-weight:900;
+  letter-spacing:-.02em;margin-bottom:4px;
+}
+.verdict-note{font-size:12px;color:var(--text2);line-height:1.5}
+.progress-row{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.p-item{display:flex;align-items:center;gap:8px}
+.p-label{font-family:var(--mono);font-size:10px;color:var(--text3);width:80px}
+.p-bar{flex:1;height:4px;background:var(--dim);border-radius:2px;overflow:hidden}
+.p-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.p-val{font-family:var(--mono);font-size:10px;color:var(--text2);width:32px;text-align:right}
+
+/* ── PRICING ─────────────────────────────────────── */
+.pricing-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+}
+.price-card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:28px 20px;
+  transition:all .2s;position:relative;
+}
+.price-card.featured{
+  border-color:var(--gold);
+  background:rgba(212,168,67,.04);
+}
+.price-card:hover{transform:translateY(-3px)}
+.price-badge{
+  position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  background:var(--gold);color:var(--black);
+  font-family:var(--mono);font-size:10px;font-weight:500;
+  padding:3px 12px;border-radius:100px;white-space:nowrap;
+  letter-spacing:.06em;
+}
+.price-tier{
+  font-family:var(--mono);font-size:10px;
+  color:var(--text3);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:8px;
+}
+.price-name{
+  font-family:var(--display);font-size:18px;font-weight:700;
+  color:var(--text);margin-bottom:20px;letter-spacing:-.01em;
+}
+.price-amount{
+  font-family:var(--display);font-size:40px;font-weight:900;
+  color:var(--gold);letter-spacing:-.03em;
+  line-height:1;margin-bottom:4px;
+}
+.price-period{font-size:12px;color:var(--text3);margin-bottom:24px}
+.price-features{list-style:none;margin-bottom:24px}
+.price-features li{
+  font-size:13px;color:var(--text2);
+  padding:7px 0;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.price-features li::before{
+  content:'✓';color:var(--green);font-size:11px;flex-shrink:0;
+}
+.price-features li.no::before{content:'—';color:var(--muted)}
+.price-features li.no{color:var(--text3)}
+.btn-price{
+  width:100%;padding:11px;
+  font-family:var(--display);font-size:12px;font-weight:700;
+  border-radius:4px;cursor:pointer;
+  transition:all .15s;letter-spacing:.04em;
+}
+.btn-price-outline{
+  background:transparent;border:1px solid var(--border2);color:var(--text2);
+}
+.btn-price-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-price-solid{
+  background:var(--gold);border:1px solid var(--gold);color:var(--black);
+}
+.btn-price-solid:hover{background:var(--gold2)}
+
+/* ── GO/NO-GO ─────────────────────────────────────── */
+.decision-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:12px;margin-bottom:32px;
+}
+.decision-card{
+  border-radius:8px;padding:28px 20px;
+  border-top:3px solid;
+}
+.dc-label{
+  font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;
+  font-weight:500;margin-bottom:8px;
+}
+.dc-title{
+  font-family:var(--display);font-size:22px;font-weight:900;
+  margin-bottom:16px;letter-spacing:-.01em;
+}
+.dc-list{list-style:none}
+.dc-list li{
+  font-size:13px;line-height:1.5;
+  padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  color:var(--text2);
+}
+.dc-list li:last-child{border:none}
+.dc-action{
+  font-size:13px;margin-top:14px;
+  padding-top:14px;border-top:1px solid rgba(255,255,255,.08);
+  color:var(--text2);
+}
+.dc-action strong{display:block;color:var(--text);font-weight:500;margin-bottom:4px}
+
+/* ── FOOTER ──────────────────────────────────────── */
+footer{
+  position:relative;z-index:1;
+  border-top:1px solid var(--border);
+  padding:40px;
+  max-width:1400px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.footer-brand{
+  font-family:var(--display);font-size:16px;font-weight:700;
+  color:var(--text);letter-spacing:-.01em;
+}
+.footer-brand span{color:var(--gold)}
+.footer-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.footer-links{display:flex;gap:28px;list-style:none}
+.footer-links a{font-size:13px;color:var(--text3);text-decoration:none;transition:color .15s}
+.footer-links a:hover{color:var(--gold)}
+
+/* ── ANIMATIONS ─────────────────────────────────── */
+.reveal{
+  opacity:0;transform:translateY(20px);
+  transition:opacity .6s ease,transform .6s ease;
+}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── MOBILE FIXES ───────────────────────────────── */
+@media (max-width: 768px) {
+  nav { padding:0 16px; }
+  .nav-links { display:none; }
+  .hero { padding:100px 16px 60px; }
+  .hero-h1 { font-size:clamp(28px,8vw,48px); }
+  .hero-sub { font-size:14px; }
+  .idea-box { max-width:100%; }
+  .stats-row { gap:20px; }
+  .stat-num { font-size:22px; }
+  section { padding:50px 16px; }
+  .steps-grid { grid-template-columns:1fr; }
+  .experts-grid { grid-template-columns:1fr; }
+  .results-row { grid-template-columns:1fr 1fr; }
+  .verdict-body { grid-template-columns:1fr; }
+  .pricing-grid { grid-template-columns:1fr; }
+  .decision-grid { grid-template-columns:1fr; }
+  footer { flex-direction:column; gap:20px; padding:24px 16px; }
+  .footer-links { flex-wrap:wrap; gap:16px; }
+
+  /* CRITICAL: fix chat messages on mobile */
+  .msg { gap:8px; }
+  .msg-avatar { width:28px; height:28px; font-size:9px; flex-shrink:0; }
+  .msg-body { 
+    padding:10px 12px; 
+    flex:1; 
+    min-width:0; 
+    max-width:calc(100vw - 80px);
+  }
+  .msg-who { font-size:10px; }
+  .msg-text { font-size:13px; }
+  .chat { padding:14px 12px; }
+  .terminal { border-radius:6px; }
+  .rounds-bar { padding:8px 12px; gap:3px; }
+  .round-chip { font-size:9px; padding:3px 7px; }
+  .chat-input-row { padding:10px 12px; gap:8px; flex-wrap:wrap; }
+  .chat-field { min-width:0; flex:1; font-size:13px; }
+  .btn-send { white-space:nowrap; padding:10px 14px; font-size:11px; }
+  
+  /* Fix verdict demo on mobile */
+  .verdict-col { padding:14px 12px; }
+  .verdict-val { font-size:22px; }
+  .p-label { width:60px; font-size:9px; }
+  
+  /* Nav mobile */
+  .nav-right { gap:6px; }
+  .btn-ghost { display:none; }
+  .btn-cta { padding:6px 12px; font-size:11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ─────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    STRATEGY BOARD
+  </div>
+  <ul class="nav-links">
+    <li><a href="#how">Как работает</a></li>
+    <li><a href="#experts">Советники</a></li>
+    <li><a href="#results">Результаты</a></li>
+    <li><a href="#pricing">Цены</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="btn-ghost">Войти</button>
+    <button class="btn-cta">Запустить анализ →</button>
+  </div>
+</nav>
+
+<!-- ── HERO ────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-tag">AI-совет директоров · v1.0 · Активен</div>
+
+  <h1 class="hero-h1">
+    Проверьте<br>
+    бизнес-идею<br>
+    <span class="accent">до вложения</span><br>
+    <span class="dim">денег.</span>
+  </h1>
+
+  <p class="hero-sub">
+    <strong>9 AI-экспертов</strong> анализируют вашу идею за 15 минут.
+    GTM-стратегия, финансовая модель и вердикт <strong>GO / NO-GO</strong> —
+    без консультантов за ₽5 млн.
+  </p>
+
+  <div class="idea-box">
+    <div class="idea-box-header">
+      <div class="dot" style="background:#e85454"></div>
+      <div class="dot" style="background:#f0c060"></div>
+      <div class="dot" style="background:#22c984"></div>
+      <span style="margin-left:8px">Опишите вашу бизнес-идею</span>
+    </div>
+    <textarea class="idea-input" id="ideaInput" rows="3"
+      placeholder="Например: SaaS для автоматизации закупок в ресторанном бизнесе. Целевая аудитория — сети от 10 точек. Планирую монетизировать через подписку ₽15 000/мес на точку..."></textarea>
+    <div class="idea-box-footer">
+      <span class="idea-hint">// введите идею → 9 экспертов начнут анализ</span>
+      <button class="btn-analyze" onclick="startDemo()">
+        Запустить анализ
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num">9</div>
+      <div class="stat-label">AI-советников</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">15 мин</div>
+      <div class="stat-label">Полный анализ</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">$39</div>
+      <div class="stat-label">Первый запуск</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">GO/NO-GO</div>
+      <div class="stat-label">Финальный вердикт</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ── HOW IT WORKS ─────────────────────────────── -->
+<section id="how">
+  <span class="section-tag reveal">Как это работает</span>
+  <h2 class="section-h2 reveal">Три шага.<br>Одно решение.</h2>
+  <p class="section-lead reveal">Не курс, не шаблон — живой спор экспертов вокруг вашей конкретной идеи.</p>
+
+  <div class="steps-grid reveal">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-icon">✍️</div>
+      <div class="step-title">Опишите идею</div>
+      <div class="step-desc">Введите бизнес-идею, рынок, команду и цель. Можно в свободной форме — достаточно 2–3 предложений. Это займёт 5 минут.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-icon">⚔️</div>
+      <div class="step-title">9 экспертов спорят</div>
+      <div class="step-desc">CFO режет бюджет. CMO критикует GTM. CSO требует доказательств спроса. 9 раундов структурированных дебатов — конфликт экспертов в вашу пользу.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-icon">📋</div>
+      <div class="step-title">Получаете вердикт</div>
+      <div class="step-desc">GTM-стратегия, финансовая модель, P(success) и чёткий ответ: стоит ли запускать. Не «надо подумать» — конкретное GO или NO-GO с обоснованием.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── LIVE DEMO ─────────────────────────────────── -->
+<section id="demo">
+  <span class="section-tag reveal">Живое демо</span>
+  <h2 class="section-h2 reveal">Посмотрите, как<br>советники <em>спорят</em>.</h2>
+  <p class="section-lead reveal">Реальная сессия по гипотезе. Нажмите «Продолжить» — следующий советник подключится к дебатам.</p>
+
+  <div class="terminal reveal" id="terminal">
+    <div class="terminal-bar">
+      <div class="t-dot" style="background:#e85454"></div>
+      <div class="t-dot" style="background:#f0c060"></div>
+      <div class="t-dot" style="background:#22c984"></div>
+      <span class="terminal-title">strategy-board / session_id: demo_ru_001</span>
+      <span class="t-status">Сессия активна</span>
+    </div>
+    <div class="rounds-bar">
+      <div class="round-chip done">Р1 Генерация</div>
+      <div class="round-chip done">Р2 Оценка</div>
+      <div class="round-chip active">Р3 Критика</div>
+      <div class="round-chip">Р4 Ревизия</div>
+      <div class="round-chip">Р5 Голосование</div>
+      <div class="round-chip">Р6 Финплан</div>
+      <div class="round-chip">Р7 Аудит</div>
+      <div class="round-chip">Р8 Коррекция</div>
+      <div class="round-chip">Р9 Вердикт</div>
+    </div>
+    <div class="chat" id="chatMessages">
+      <div class="msg">
+        <div class="msg-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:#2a2010;border:1px solid #d4a84380;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:10px;font-weight:700;color:#d4a843;flex-shrink:0;">CFO</div>
+            <span class="msg-who" style="color:#d4a843;margin-bottom:0;">Советник Волков · Финансы</span>
+          </div>
+          <div class="msg-text">Гипотеза показывает ₽15 000/мес с точки при 50 ресторанах = <strong>₽750 000 MRR к году 1</strong>. Смотрю юнит-экономику: CAC при прямых продажах B2B — около ₽80 000 на клиента. Срок окупаемости — 5,3 месяца. При оттоке 5%/мес LTV = ₽300 000. LTV/CAC = <strong>3,75 — приемлемо, но не отлично</strong>. Покажите допущения по оттоку.</div>
+        </div>
+      </div>
+      <div class="msg">
+        <div class="msg-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:#0a1628;border:1px solid #4a8fff80;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:10px;font-weight:700;color:#4a8fff;flex-shrink:0;">CTO</div>
+            <span class="msg-who" style="color:#4a8fff;margin-bottom:0;">Советник Щербаков · Технологии</span>
+          </div>
+          <div class="msg-text">Флаг на интеграцию с кассовыми системами. <strong>IIKO + R-Keeper = 3–4 месяца только на API-слой</strong>. Это не учтено в 6-недельном таймлайне MVP. Также: кто поддерживает интеграцию при обновлениях вендоров? Это скрытая операционная стоимость в ₽200–400К/год.</div>
+        </div>
+      </div>
+      <div class="msg" id="typingMsg" style="display:none">
+        <div class="msg-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div id="typingAvatar" style="width:32px;height:32px;border-radius:50%;background:#28081a;border:1px solid #ec489980;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:10px;font-weight:700;color:#ec4899;flex-shrink:0;">CMO</div>
+            <span class="msg-who" id="typingWho" style="color:#ec4899;margin-bottom:0;">Советник Орлов · Маркетинг</span>
+          </div>
+          <div class="msg-text">
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" class="chat-field" id="chatField"
+        placeholder="Задайте вопрос советнику или введите свою гипотезу..." />
+      <button class="btn-send" onclick="triggerNext()">Продолжить →</button>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── EXPERTS ────────────────────────────────────── -->
+<section id="experts">
+  <span class="section-tag reveal">Советники</span>
+  <h2 class="section-h2 reveal">9 экспертов.<br>Один <em>конфликт</em>.</h2>
+  <p class="section-lead reveal">Каждый отстаивает свою позицию. CFO против Sales по выручке. CTO против PM по срокам. Это не монолог — это продуктивное столкновение мнений.</p>
+
+  <div class="experts-grid reveal">
+
+    <div class="expert-card" style="--accent:#d4a843">
+      <div class="expert-avatar" style="background:rgba(212,168,67,.12);color:#d4a843">CFO</div>
+      <div class="expert-role" style="color:#d4a843">Финансы · Юнит-экономика</div>
+      <div class="expert-name">Советник Волков</div>
+      <div class="expert-desc">Режет нереалистичные бюджеты. Требует обоснования каждой цифры. Строит P&L, считает break-even и LTV/CAC до того, как вы потратите первый рубль.</div>
+      <div class="expert-tags">
+        <span class="tag">Юнит-экономика</span>
+        <span class="tag">P&L</span>
+        <span class="tag">Break-even</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(74,143,255,.12);color:#4a8fff">CTO</div>
+      <div class="expert-role" style="color:#4a8fff">Технологии · Реализуемость</div>
+      <div class="expert-name">Советник Щербаков</div>
+      <div class="expert-desc">Разрушает оптимистичные сроки инженерной реальностью. Оценивает техническую сложность и скрытые затраты на масштабирование.</div>
+      <div class="expert-tags">
+        <span class="tag">MVP-скоуп</span>
+        <span class="tag">Архитектура</span>
+        <span class="tag">Таймлайн</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(34,201,132,.12);color:#22c984">CSO</div>
+      <div class="expert-role" style="color:#22c984">Продажи · GTM</div>
+      <div class="expert-name">Советник Мартыненко</div>
+      <div class="expert-desc">Проектирует GTM с реальными каналами и CPL-бенчмарками. Требует доказательств спроса. Разрабатывает воронку продаж под конкретный ICP.</div>
+      <div class="expert-tags">
+        <span class="tag">GTM</span>
+        <span class="tag">Каналы</span>
+        <span class="tag">ICP</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(236,72,153,.12);color:#ec4899">CMO</div>
+      <div class="expert-role" style="color:#ec4899">Маркетинг · Позиционирование</div>
+      <div class="expert-name">Советник Орлов</div>
+      <div class="expert-desc">Критикует позиционирование и messaging. Задаёт вопросы о конкурентах. Строит контент-стратегию и маркетинговый план с конкретными KPI.</div>
+      <div class="expert-tags">
+        <span class="tag">Позиционирование</span>
+        <span class="tag">CPL</span>
+        <span class="tag">Контент</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(139,92,246,.12);color:#a78bfa">CPO</div>
+      <div class="expert-role" style="color:#a78bfa">Продукт · Роадмап</div>
+      <div class="expert-name">Советник Королев</div>
+      <div class="expert-desc">Контролирует скоуп и предотвращает feature creep. Проектирует роадмап от MVP до v2. Приоритизирует функции по пользовательской ценности.</div>
+      <div class="expert-tags">
+        <span class="tag">MVP</span>
+        <span class="tag">Роадмап</span>
+        <span class="tag">Приоритеты</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(14,165,233,.12);color:#38bdf8">CDO</div>
+      <div class="expert-role" style="color:#38bdf8">Дизайн-мышление · UX</div>
+      <div class="expert-name">Советник Беляева</div>
+      <div class="expert-desc">Задаёт главный вопрос: «Клиент действительно хочет это?» Применяет методологию дизайн-мышления для выявления реальных потребностей рынка.</div>
+      <div class="expert-tags">
+        <span class="tag">Empathy map</span>
+        <span class="tag">UX</span>
+        <span class="tag">Jobs-to-be-done</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(13,148,136,.12);color:#2dd4bf">CIO</div>
+      <div class="expert-role" style="color:#2dd4bf">Инфраструктура · Данные</div>
+      <div class="expert-name">Советник Разумов</div>
+      <div class="expert-desc">Выявляет скрытые операционные затраты и риски безопасности данных. Критичен для регулируемых отраслей и корпоративных клиентов.</div>
+      <div class="expert-tags">
+        <span class="tag">Безопасность</span>
+        <span class="tag">Масштаб</span>
+        <span class="tag">On-prem</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(249,115,22,.12);color:#fb923c">CHRO</div>
+      <div class="expert-role" style="color:#fb923c">Команда · Найм</div>
+      <div class="expert-name">Советник Вершинин</div>
+      <div class="expert-desc">Оценивает реалистичность планов найма и зарплатных ожиданий. Выявляет кадровые риски до того, как вы начнёте нанимать не тех людей.</div>
+      <div class="expert-tags">
+        <span class="tag">Найм</span>
+        <span class="tag">Зарплаты</span>
+        <span class="tag">Оргдизайн</span>
+      </div>
+    </div>
+
+    <div class="expert-card">
+      <div class="expert-avatar" style="background:rgba(232,84,84,.12);color:#e85454">CSA</div>
+      <div class="expert-role" style="color:#e85454">Стратегия · Финальный вердикт</div>
+      <div class="expert-name">Советник Аверин</div>
+      <div class="expert-desc">Синтезирует аргументы всех 8 советников. Вычисляет P(success) по 10 сигналам. Выносит финальный вердикт: GO или NO-GO — с полным обоснованием.</div>
+      <div class="expert-tags">
+        <span class="tag">P(success)</span>
+        <span class="tag">GO / NO-GO</span>
+        <span class="tag">Синтез</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── RESULTS ────────────────────────────────────── -->
+<section id="results">
+  <span class="section-tag reveal">Что вы получаете</span>
+  <h2 class="section-h2 reveal">Не «много умных мыслей».<br><em>Конкретный выход.</em></h2>
+  <p class="section-lead reveal">Каждая сессия завершается документами, которые можно использовать на следующий день.</p>
+
+  <div class="results-row reveal">
+    <div class="result-card">
+      <div class="result-icon">🚀</div>
+      <div class="result-title">GTM-стратегия</div>
+      <div class="result-desc">3 приоритетных канала с CPL-бенчмарками и планом первых 30 дней</div>
+    </div>
+    <div class="result-card">
+      <div class="result-icon">💰</div>
+      <div class="result-title">Финансовая модель</div>
+      <div class="result-desc">P&L, break-even, юнит-экономика — все цифры с источниками</div>
+    </div>
+    <div class="result-card">
+      <div class="result-icon">📊</div>
+      <div class="result-title">Анализ рынка</div>
+      <div class="result-desc">TAM / SAM / SOM с учётом реальных мощностей вашей команды</div>
+    </div>
+    <div class="result-card">
+      <div class="result-icon">🎯</div>
+      <div class="result-title">P(success) вердикт</div>
+      <div class="result-desc">Вероятность успеха по 10 сигналам + GO / NO-GO с обоснованием</div>
+    </div>
+  </div>
+
+  <div class="verdict-demo reveal">
+    <div class="verdict-header">
+      <span class="verdict-label">ФИНАЛЬНЫЙ ВЕРДИКТ · СОВЕТНИК АВЕРИН · РАУНД 9</span>
+      <span class="verdict-status" style="color:#22c984">✓ GO — ЗАПУСКАТЬ</span>
+    </div>
+    <div class="verdict-body">
+      <div class="verdict-col">
+        <div class="verdict-col-label">Вероятность успеха</div>
+        <div class="verdict-val" style="color:#22c984">64%</div>
+        <div class="verdict-note">На основе 10 сигналов: рыночная боль, размер рынка, команда, конкуренция, юнит-экономика...</div>
+        <div class="progress-row" style="margin-top:12px">
+          <div class="p-item">
+            <span class="p-label" style="color:#d4a843">Финансы</span>
+            <div class="p-bar"><div class="p-fill" style="width:72%;background:#d4a843"></div></div>
+            <span class="p-val">72%</span>
+          </div>
+          <div class="p-item">
+            <span class="p-label" style="color:#4a8fff">Технологии</span>
+            <div class="p-bar"><div class="p-fill" style="width:58%;background:#4a8fff"></div></div>
+            <span class="p-val">58%</span>
+          </div>
+          <div class="p-item">
+            <span class="p-label" style="color:#22c984">Рынок</span>
+            <div class="p-bar"><div class="p-fill" style="width:81%;background:#22c984"></div></div>
+            <span class="p-val">81%</span>
+          </div>
+          <div class="p-item">
+            <span class="p-label" style="color:#ec4899">Команда</span>
+            <div class="p-bar"><div class="p-fill" style="width:45%;background:#ec4899"></div></div>
+            <span class="p-val">45%</span>
+          </div>
+        </div>
+      </div>
+      <div class="verdict-col">
+        <div class="verdict-col-label">Ключевые риски</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <div style="padding:8px 10px;background:rgba(232,84,84,.08);border:1px solid rgba(232,84,84,.2);border-radius:5px;font-size:12px;color:var(--text2)">
+            <span style="color:#e85454;font-family:var(--mono);font-size:10px;display:block;margin-bottom:3px">ВЫСОКИЙ</span>
+            CAC при холодных B2B-продажах — ₽80 000+. Нужен партнёрский канал.
+          </div>
+          <div style="padding:8px 10px;background:rgba(240,192,96,.08);border:1px solid rgba(240,192,96,.2);border-radius:5px;font-size:12px;color:var(--text2)">
+            <span style="color:#f0c060;font-family:var(--mono);font-size:10px;display:block;margin-bottom:3px">СРЕДНИЙ</span>
+            Интеграция IIKO/R-Keeper — 3–4 мес. задержка MVP.
+          </div>
+          <div style="padding:8px 10px;background:rgba(34,201,132,.08);border:1px solid rgba(34,201,132,.2);border-radius:5px;font-size:12px;color:var(--text2)">
+            <span style="color:#22c984;font-family:var(--mono);font-size:10px;display:block;margin-bottom:3px">НИЗКИЙ</span>
+            Конкуренция слабая — иностранные SaaS недоступны в РФ.
+          </div>
+        </div>
+      </div>
+      <div class="verdict-col">
+        <div class="verdict-col-label">Следующие 30 дней</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#22c984;font-family:var(--mono);font-size:11px;flex-shrink:0;margin-top:1px">01</span>
+            <span style="font-size:13px;color:var(--text2)">Провести 5 интервью с управляющими ресторанных сетей</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#22c984;font-family:var(--mono);font-size:11px;flex-shrink:0;margin-top:1px">02</span>
+            <span style="font-size:13px;color:var(--text2)">Запустить лендинг с предзаказом — собрать 10 LOI</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#22c984;font-family:var(--mono);font-size:11px;flex-shrink:0;margin-top:1px">03</span>
+            <span style="font-size:13px;color:var(--text2)">Переговоры с одним дистрибьютором оборудования — партнёрский канал</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:#22c984;font-family:var(--mono);font-size:11px;flex-shrink:0;margin-top:1px">04</span>
+            <span style="font-size:13px;color:var(--text2)">Прототип без интеграции — ручной MVP за 2 недели</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── PRICING ─────────────────────────────────────── -->
+<section id="pricing">
+  <span class="section-tag reveal">Стоимость</span>
+  <h2 class="section-h2 reveal">Начните бесплатно.<br>Платите за <em>результат</em>.</h2>
+  <p class="section-lead reveal">Первая сессия бесплатно. Без подписки по умолчанию.</p>
+
+  <div class="pricing-grid reveal">
+
+    <div class="price-card">
+      <div class="price-tier">Старт</div>
+      <div class="price-name">Бесплатно</div>
+      <div class="price-amount">$0</div>
+      <div class="price-period">1 сессия · навсегда</div>
+      <ul class="price-features">
+        <li>GTM-сессия по вашей идее</li>
+        <li>Анализ CMO + CFO + CSO</li>
+        <li>P(success) оценка</li>
+        <li class="no">Финансовая модель</li>
+        <li class="no">GO/NO-GO вердикт</li>
+        <li class="no">Диалог с советниками</li>
+      </ul>
+      <button class="btn-price btn-price-outline">Начать бесплатно</button>
+    </div>
+
+    <div class="price-card featured">
+      <div class="price-badge">ЛУЧШИЙ СТАРТ</div>
+      <div class="price-tier">Разовый</div>
+      <div class="price-name">Pay-per-use</div>
+      <div class="price-amount">$39</div>
+      <div class="price-period">за одну полную сессию</div>
+      <ul class="price-features">
+        <li>Все 9 советников в дебате</li>
+        <li>GTM + финансовая модель</li>
+        <li>Анализ рынка TAM/SAM/SOM</li>
+        <li>P(success) + GO/NO-GO</li>
+        <li>Диалог с советниками</li>
+        <li>PDF-экспорт результата</li>
+      </ul>
+      <button class="btn-price btn-price-solid">Запустить анализ →</button>
+    </div>
+
+    <div class="price-card">
+      <div class="price-tier">Подписка</div>
+      <div class="price-name">Профессионал</div>
+      <div class="price-amount">$49</div>
+      <div class="price-period">в месяц · без лимита сессий</div>
+      <ul class="price-features">
+        <li>Безлимит сессий</li>
+        <li>Все 9 советников</li>
+        <li>История всех сессий</li>
+        <li>Приоритетный диалог</li>
+        <li>Сравнение гипотез</li>
+        <li class="no">Командный доступ</li>
+      </ul>
+      <button class="btn-price btn-price-outline">Подключить</button>
+    </div>
+
+    <div class="price-card">
+      <div class="price-tier">Полный аудит</div>
+      <div class="price-name">Стратегический</div>
+      <div class="price-amount">$149</div>
+      <div class="price-period">разовый · для серьёзных решений</div>
+      <ul class="price-features">
+        <li>Все 9 советников</li>
+        <li>Полный 90-дневный план</li>
+        <li>Детальный анализ рисков</li>
+        <li>Командный доступ (3 чел)</li>
+        <li>Приоритетная поддержка</li>
+        <li>Инвесторский pitch-deck</li>
+      </ul>
+      <button class="btn-price btn-price-outline">Запросить аудит</button>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── GO / NO-GO CRITERIA ────────────────────────── -->
+<section>
+  <span class="section-tag reveal">Когда что выбирать</span>
+  <h2 class="section-h2 reveal"><em>GO, PIVOT</em><br>или NO-GO?</h2>
+  <p class="section-lead reveal">Советник Аверин выносит вердикт по итогам дебатов всех 9 экспертов. Не интуиция — алгоритм из 10 сигналов.</p>
+
+  <div class="decision-grid reveal">
+    <div class="decision-card" style="border-color:#22c984;background:rgba(34,201,132,.04)">
+      <div class="dc-label" style="color:#22c984">Вердикт GO</div>
+      <div class="dc-title" style="color:#22c984">Запускать</div>
+      <ul class="dc-list">
+        <li>Боль подтверждена интервью</li>
+        <li>LTV/CAC ≥ 3 в базовом сценарии</li>
+        <li>Конкурентный дифференциатор чёткий</li>
+        <li>Команда закрывает ключевые роли</li>
+        <li>Размер рынка позволяет масштаб</li>
+      </ul>
+      <div class="dc-action">
+        <strong>Следующий шаг</strong>
+        Запустить MVP за 30 дней. Первые 10 платящих клиентов — единственная следующая метрика.
+      </div>
+    </div>
+    <div class="decision-card" style="border-color:#f0c060;background:rgba(240,192,96,.04)">
+      <div class="dc-label" style="color:#f0c060">Вердикт PIVOT</div>
+      <div class="dc-title" style="color:#f0c060">Пересмотреть</div>
+      <ul class="dc-list">
+        <li>Боль есть, но сегмент неверный</li>
+        <li>Экономика работает при смене модели</li>
+        <li>Продукт ценен, упаковка не та</li>
+        <li>Канал привлечения слишком дорогой</li>
+        <li>ICP размыт — нужно сузить</li>
+      </ul>
+      <div class="dc-action">
+        <strong>Следующий шаг</strong>
+        Сменить сегмент или модель монетизации. Повторить тест через 30 дней.
+      </div>
+    </div>
+    <div class="decision-card" style="border-color:#e85454;background:rgba(232,84,84,.04)">
+      <div class="dc-label" style="color:#e85454">Вердикт NO-GO</div>
+      <div class="dc-title" style="color:#e85454">Не запускать</div>
+      <ul class="dc-list">
+        <li>Боль не подтверждена интервью</li>
+        <li>Рынок слишком мал для масштаба</li>
+        <li>Конкурент занимает нишу плотно</li>
+        <li>Юнит-экономика не сходится ни при каких условиях</li>
+        <li>Команда не закрывает ключевой риск</li>
+      </ul>
+      <div class="dc-action">
+        <strong>Следующий шаг</strong>
+        Зафиксировать выводы. Сменить проблему или рынок радикально. Технология остаётся.
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── FOOTER ─────────────────────────────────────── -->
+<footer>
+  <div>
+    <div class="footer-brand">STRATEGY <span>BOARD</span></div>
+    <div class="footer-sub">AI-совет директоров для бизнеса · v1.0 · 2026</div>
+  </div>
+  <ul class="footer-links">
+    <li><a href="#">Как работает</a></li>
+    <li><a href="#">Советники</a></li>
+    <li><a href="#">Цены</a></li>
+    <li><a href="#">Конфиденциальность</a></li>
+    <li><a href="#">Контакты</a></li>
+  </ul>
+</footer>
+
+<script>
+// ── DEMO CHAT ─────────────────────────────────────
+const msgs = [
+  {
+    role:'CSO', color:'#22c984',
+    name:'Советник Мартыненко · Продажи',
+    text:'Ценовая точка ₽15 000/мес — это <strong>нижняя граница для B2B SaaS</strong> в общепите. Бенчмарк по рынку: iiko стоит ₽20 000–60 000/мес. Но ключевой вопрос: кто подписывает договор — управляющий или собственник? Если собственник не видит ROI за 2 месяца — сделки не будет. Покажите расчёт экономии на закупках: если 5% от оборота ресторана = ₽150 000/мес — ваши ₽15 000 выглядят как очевидная инвестиция.'
+  },
+  {
+    role:'CMO', color:'#ec4899',
+    name:'Советник Орлов · Маркетинг',
+    text:'Согласен с CSO по ROI-аргументу, но добавлю: <strong>«автоматизация закупок» — это не позиционирование</strong>. Это функция. Позиционирование должно звучать как: «Экономьте ₽150 000/мес на каждой точке — без ручного учёта». Целевой клиент — не IT-директор, а операционный директор сети, которому надоело разбирать excel-файлы от шеф-поваров. Канал: отраслевые выставки + прямые продажи через дистрибьюторов оборудования.'
+  },
+  {
+    role:'CDO', color:'#38bdf8',
+    name:'Советник Беляева · Дизайн-мышление',
+    text:'Прежде чем двигаться дальше — <strong>кто-нибудь разговаривал с управляющим реального ресторана?</strong> Гипотеза предполагает, что «ручные закупки» — главная боль. Но по моим данным, основная боль — <strong>воровство персонала и списания</strong>, а не сам процесс закупок. Если это так — ценностное предложение полностью меняется: не «автоматизируй закупки», а «видь каждое списание в реальном времени».'
+  }
+];
+
+let idx = 0;
+let busy = false;
+
+function triggerNext() {
+  if (busy || idx >= msgs.length) return;
+  busy = true;
+  const chat = document.getElementById('chatMessages');
+  const typing = document.getElementById('typingMsg');
+  const field = document.getElementById('chatField');
+
+  // clear field
+  field.value = '';
+
+  // show typing
+  typing.style.display = 'flex';
+  typing.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  // update avatar in typing
+  const m = msgs[idx];
+  if(document.getElementById('typingAvatar')) document.getElementById('typingAvatar').style.borderColor = m.color+'80';
+  if(document.getElementById('typingAvatar')) { document.getElementById('typingAvatar').style.color = m.color; document.getElementById('typingAvatar').textContent = m.role; }
+  
+  if(document.getElementById('typingWho')) { document.getElementById('typingWho').style.color = m.color;
+  document.getElementById('typingWho').textContent = m.name; }
+
+  setTimeout(() => {
+    typing.style.display = 'none';
+
+    const div = document.createElement('div');
+    div.className = 'msg';
+    div.innerHTML = `
+      <div style="background:#16161c;border:1px solid #2a2a38;border-radius:8px;padding:14px 16px;width:100%;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:32px;height:32px;min-width:32px;border-radius:50%;background:#1a1a24;border:1px solid ${m.color};display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:10px;font-weight:700;color:${m.color};">${m.role}</div>
+          <span style="color:${m.color};font-size:11px;font-weight:600;font-family:monospace;">${m.name}</span>
+        </div>
+        <p style="color:#d0d0e8;font-size:14px;line-height:1.75;margin:0;word-break:break-word;">${m.text}</p>
+      </div>`;
+    chat.insertBefore(div, typing);
+    div.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+    // advance round chips
+    const chips = document.querySelectorAll('.round-chip');
+    const activeIdx = [...chips].findIndex(c=>c.classList.contains('active'));
+    if (activeIdx >= 0 && activeIdx < chips.length-1) {
+      chips[activeIdx].classList.remove('active');
+      chips[activeIdx].classList.add('done');
+      chips[activeIdx+1].classList.add('active');
+    }
+
+    idx++;
+    busy = false;
+  }, 2000);
+}
+
+function startDemo() {
+  const val = document.getElementById('ideaInput').value.trim();
+  const demo = document.getElementById('demo');
+  if (demo) {
+    demo.scrollIntoView({behavior:'smooth'});
+    setTimeout(()=>triggerNext(), 600);
+  }
+}
+
+document.getElementById('chatField').addEventListener('keydown', e => {
+  if (e.key === 'Enter') triggerNext();
+});
+
+// ── SCROLL REVEAL ─────────────────────────────────
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }
+  });
+}, {threshold: 0.1});
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// ── PROGRESS BARS ANIMATE ─────────────────────────
+const pObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.querySelectorAll('.p-fill').forEach(bar => {
+        const w = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(()=>{ bar.style.width = w; }, 200);
+      });
+      pObs.unobserve(e.target);
+    }
+  });
+}, {threshold: 0.3});
+document.querySelectorAll('.verdict-demo').forEach(el => pObs.observe(el));
+</script>
+</body>
+</html>
